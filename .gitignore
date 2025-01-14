@@ -1,0 +1,5 @@
+.DS_STORE
+target
+out
+node_modules
+.env

@@ -1,0 +1,24 @@
+{
+  "name": "sp1-game-demo",
+  "version": "1.0.0",
+  "description": "Play BrickleZ(K) and prove your high score on chain.",
+  "type": "module",
+  "scripts": {
+    "build": "tsc && vite build --config vite.config.ts",
+    "preview": "vite preview --config vite.config.ts",
+    "dev": "vite --config vite.config.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7"
+  },
+  "dependencies": {
+    "@wagmi/connectors": "^5.7.3",
+    "@wagmi/core": "^2.16.3",
+    "viem": "^2.22.2",
+    "zksync-sso": "^0.0.0-beta.8"
+  }
+}

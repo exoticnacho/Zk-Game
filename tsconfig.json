@@ -1,0 +1,16 @@
+{
+  "exclude": ["node_modules", "contracts", "out", "target"],
+  "include": ["frontend/src/**/*"],
+  "compilerOptions": {
+    "target": "ES2020",
+    "moduleDetection": "auto",
+    "module": "ESNext",
+    "rootDir": "./frontend/src",
+    "moduleResolution": "bundler",
+    "outDir": "./out",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true
+  }
+}
