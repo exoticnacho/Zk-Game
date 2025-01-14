@@ -7,7 +7,16 @@ import {
   getPlayerAccount,
   getPlayerHighScore,
 } from "./wagmi-config";
-import { DraggableWindow, getHighestZIndex, handleCloseButtons, handleDoubleClick, handleDoubleClicks, handleLogIn, handleZIndex, setupDialogs } from "./ui-utils";
+import {
+  DraggableWindow,
+  getHighestZIndex,
+  handleCloseButtons,
+  handleDoubleClick,
+  handleDoubleClicks,
+  handleLogIn,
+  handleZIndex,
+  setupDialogs,
+} from "./ui-utils";
 import startGame from "./game";
 import { Score } from "./types";
 
@@ -31,7 +40,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   watchAccount(config, {
     async onChange(data) {
-      if (!playerAccount.address && data.address) {
+      if (!playerAccount.address && data.isConnected) {
         handleLogIn();
       }
       playerAccount = data;
@@ -45,7 +54,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   await setupUI(playerAccount, windows);
 });
 
-async function setupUI(playerAccount: GetAccountReturnType, windows: NodeListOf<HTMLElement>) {
+async function setupUI(
+  playerAccount: GetAccountReturnType,
+  windows: NodeListOf<HTMLElement>
+) {
   setupDialogs("finder", "openAbout");
   setupDialogs("account-info");
   handleDoubleClicks();
@@ -155,4 +167,3 @@ async function handlePlayerHighScore(playerAddress: `0x${string}`) {
     )}.${timeString.substring(endLimit)}`;
   }
 }
-
