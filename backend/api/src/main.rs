@@ -127,7 +127,7 @@ async fn generate_proof(
     input: ProofInput,
 ) -> Result<ProofResponse, Box<dyn std::error::Error + Send>> {
     // Setup the prover client.
-    let client = ProverClient::new();
+    let client = ProverClient::from_env();
 
     // Setup the inputs.
     let mut stdin = SP1Stdin::new();
@@ -136,7 +136,7 @@ async fn generate_proof(
     stdin.write(&input.blocks_destroyed);
     stdin.write(&input.time_elapsed);
 
-    let (output, _report) = client.execute(ELF, stdin.clone()).run()?;
+    let (output, _report) = client.execute(ELF, &stdin).run()?;
 
     // Read the output.
     let decoded = PublicValuesStruct::abi_decode(output.as_slice(), true).unwrap();
@@ -150,7 +150,7 @@ async fn generate_proof(
     match is_valid {
         true => {
             println!("generating proof...");
-            let proof = client.prove(&pk, stdin).groth16().run()?;
+            let proof = client.prove(&pk, &stdin).groth16().run()?;
             println!("successfully generated proof!");
 
             let public_values = proof.public_values.as_slice();

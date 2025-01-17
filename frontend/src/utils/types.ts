@@ -1,3 +1,5 @@
+import type { Address } from "viem";
+
 export enum Controls {
   Up = "Up",
   Down = "Down",
@@ -19,7 +21,8 @@ export interface ProofData {
 export type ProofStatus = "Pending" | "Created" | "Verified";
 
 export interface Score {
+  player: Address;
   blocksDestroyed: bigint;
   timeElapsed: bigint;
-  timestamp: bigint;
+  timestamp?: bigint;
 }

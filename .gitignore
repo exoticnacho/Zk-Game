@@ -1,5 +1,5 @@
 .DS_STORE
 target
-out
+wasm
 node_modules
 .env
