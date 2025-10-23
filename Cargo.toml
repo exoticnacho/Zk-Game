@@ -1,6 +1,6 @@
 [workspace]
 members = [
-    "backend/api",
+    "backend/api", "backend/script", "backend/sp1_program",
     "frontend/web_game",
     "game_lib"
 ]

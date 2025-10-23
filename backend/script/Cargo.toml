@@ -1,0 +1,10 @@
+[package]
+name = "script"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+sp1-sdk = "5.0.0"
+hex = "0.4.3"
+alloy-sol-types = { workspace = true }
+game-lib = { path = "../../game_lib" }
