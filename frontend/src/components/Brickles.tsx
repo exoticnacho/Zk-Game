@@ -1,243 +1,125 @@
-import Draggable from 'react-draggable';
-import Spinner from './Spinner';
-import { type Dispatch, type MutableRefObject, type SetStateAction, useEffect, useRef, useState } from 'react';
-import type { Action, ProofStatus } from '../utils/types';
-import init, { GameWrapper } from '../../wasm/game_wasm';
-import { submitProof } from '../utils/proofs';
-import { verifyProof } from '../utils/wagmi-config';
-import { useAccount } from 'wagmi';
+// frontend/src/components/Brickles.tsx
 
-interface BricklesProps {
-  setShowBrickles: Dispatch<SetStateAction<boolean>>;
-  zIndex: number;
-  handleBricklesWindowClick: () => void;
+import { useAccount } from 'wagmi';
+import { useWriteContracts, useCapabilities } from 'wagmi/experimental';
+import { useMemo, useState } from 'react';
+import { PAYMASTER_URL, ABI, GAME_CONTRACT_ADDRESS } from '../utils/constants';
+import { submitProof } from '../utils/proofs'; // Impor fungsi backend Rust Anda
+import { baseSepolia } from 'wagmi/chains';
+import Spinner from './Spinner'; // Asumsi Spinner adalah default export
+import type { Action } from '../utils/types'; // Asumsi type Action ada
+
+// Definisikan tipe state game
+interface GameState {
+    actionLog: Action[]; 
+    blocksDestroyed: number;
+    timeElapsed: number;
 }
 
-export default function Brickles({ setShowBrickles, zIndex, handleBricklesWindowClick }: BricklesProps) {
-  const [gameStatus, setGameStatus] = useState<'not-started' | 'playing' | 'over'>('not-started');
-  const [proofStatus, setProofStatus] = useState<ProofStatus | 'none'>('none');
-  const [currentControl, setCurrentControl] = useState('None');
-  const canvasRef: MutableRefObject<HTMLCanvasElement | undefined> = useRef();
-  const gameRef: MutableRefObject<GameWrapper | undefined> = useRef();
-  const requestRef: MutableRefObject<number | undefined> = useRef();
-  const [recordedActions, setRecordedActions] = useState<Action[]>([]);
-  const [finalScoreAndTime, setFinalScoreAndTime] = useState<[number, number]>([0, 0]);
-  const nodeRef = useRef(null);
-  const account = useAccount();
 
-  // Initialize Game
-  useEffect(() => {
-    async function initializeGame() {
-      if (canvasRef.current && !gameRef.current) {
-        await init();
-        gameRef.current = new GameWrapper(canvasRef.current);
-        handleBricklesWindowClick();
-      }
-    }
+export function Brickles() {
+    // PERBAIKAN: Definisikan state gameData yang menyebabkan error sebelumnya
+    const [gameData, setGameData] = useState<GameState>({ 
+        actionLog: [] as Action[], 
+        blocksDestroyed: 0, 
+        timeElapsed: 0 
+    });
+    
+    const [isSaving, setIsSaving] = useState(false);
+    const [txStatus, setTxStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+    const { address, isConnected, chain } = useAccount();
 
-    initializeGame();
-  }, [canvasRef, gameRef]);
+    // 1. Inisialisasi hook transaksi EIP-4337
+    const { writeContracts, isPending } = useWriteContracts();
+    
+    // 2. Dapatkan Paymaster Capabilities dari wallet
+    const { data: availableCapabilities } = useCapabilities({ account: address });
 
-  // Game loop
-  useEffect(() => {
-    const animate = () => {
-      if (!gameRef.current) return;
-
-      gameRef.current.update(currentControl, gameStatus === 'playing');
-
-      if (!gameRef.current.is_game_over()) {
-        requestRef.current = requestAnimationFrame(animate);
-      } else {
-        if (gameStatus === 'playing') {
-          setGameStatus('over');
-          const results = gameRef.current.get_results();
-          const actions = gameRef.current.get_recorded_actions();
-          setRecordedActions(actions);
-          setFinalScoreAndTime(results);
+    const capabilities = useMemo(() => {
+        if (!availableCapabilities || !address || chain?.id !== baseSepolia.id) return {};
+        const capabilitiesForChain = availableCapabilities[baseSepolia.id];
+        
+        // Logika Paymaster CDP Anda
+        if (capabilitiesForChain?.['paymasterService']?.supported) {
+            return {
+                paymasterService: {
+                    url: PAYMASTER_URL, // URL PAYMASTER CDP Anda
+                },
+            };
         }
-      }
+        return {};
+    }, [availableCapabilities, address, chain]);
+
+
+    const handleSaveOnChain = async (actionLog: Action[], blocksDestroyed: number, timeElapsed: number) => {
+        if (!address || !isConnected) {
+            alert('Please connect your wallet first.');
+            return;
+        }
+
+        setIsSaving(true);
+        setTxStatus('loading');
+
+        try {
+            // Panggil backend Rust untuk generate proof
+            const proofData = await submitProof(actionLog, blocksDestroyed, timeElapsed);
+            
+            if (!proofData) {
+                alert('Proof generation failed. Check your backend API.');
+                setTxStatus('error');
+                return;
+            }
+
+            // 3. Kirim Transaksi Gasless (EIP-4337)
+            writeContracts({
+                contracts: [{
+                    address: GAME_CONTRACT_ADDRESS,
+                    abi: ABI,
+                    functionName: 'verifyProof',
+                    args: [proofData.public_values, proofData.proof_bytes],
+                }],
+                capabilities, // INI MENGIRIM PAYMASTER URL KE WALLET
+            }, {
+                onSuccess: (hash) => {
+                    setTxStatus('success');
+                    alert(`Score submitted! Tx Hash: ${hash}`);
+                },
+                onError: (error) => {
+                    setTxStatus('error');
+                    console.error('Transaction failed:', error);
+                    alert(`Transaction failed: ${error.message}`);
+                }
+            });
+
+        } catch (error) {
+            setTxStatus('error');
+            console.error('Proof submission failed:', error);
+            alert('Failed to save score. Check backend/API connection.');
+        } finally {
+            setIsSaving(false);
+        }
     };
 
-    requestRef.current = requestAnimationFrame(animate);
 
-    return () => {
-      if (requestRef.current) {
-        cancelAnimationFrame(requestRef.current);
-      }
-    };
-  }, [gameStatus, currentControl, gameRef.current]);
-
-  // keyboard controls
-  useEffect(() => {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const handleKeyDown = (event: any) => {
-      switch (event.key) {
-        case 'ArrowLeft':
-          setCurrentControl('Left');
-          break;
-        case 'ArrowRight':
-          setCurrentControl('Right');
-          break;
-      }
-    };
-
-    const handleKeyUp = () => {
-      setCurrentControl('None');
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    window.addEventListener('keyup', handleKeyUp);
-
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      window.removeEventListener('keyup', handleKeyUp);
-    };
-  }, []);
-
-  const startGame = async () => {
-    setGameStatus('playing');
-  };
-
-  async function handlePlayAgain() {
-    setFinalScoreAndTime([0, 0]);
-    setRecordedActions([]);
-    await init();
-    gameRef.current = new GameWrapper(canvasRef.current!);
-    setGameStatus('not-started');
-    setCurrentControl('None');
-  }
-
-  async function handleSaveOnChain() {
-    try {
-    setProofStatus('Pending');
-    if(!account.isConnected) {
-      alert('Please connect your wallet to save your score on-chain.');
-      return;
-    }
-    const proofData = await submitProof(recordedActions, finalScoreAndTime[0], finalScoreAndTime[1]);
-    if (!proofData || !proofData.public_values || !proofData.proof) {
-      alert("Issue creating proof. Please try again.");
-      setProofStatus('none');
-      return;
-    }
-    setProofStatus('Created');
-    const result = await verifyProof(`0x${proofData.public_values}`, `0x${proofData.proof}`);
-    if (result) {
-      setProofStatus('Verified');
-    } else {
-      setProofStatus('none');
-      alert('Proof verification failed. Please try again.');
-    }
-  } catch(error){
-    console.error('Error saving on chain:', error);
-    alert('An error occurred while saving on chain. Please try again.');
-    setProofStatus('none');
-  }
-  }
-
-  return (
-    <Draggable
-      bounds={{ top: -25, left: -30, right: 775, bottom: 465 }}
-      nodeRef={nodeRef}
-      offsetParent={document.body}
-    >
-      <section
-        className="window"
-        id="brickles-window"
-        style={{ zIndex }}
-      >
-        <header>
-          <button
-            className="close"
-            onClick={() => setShowBrickles(false)}
-          />
-          <h2
-            className="title"
-            ref={nodeRef}
-          >
-            {' '}
-            <span>Brickles Plus</span>
-          </h2>
-          <div className="game-info-container">
-            {gameStatus === 'not-started' && (
-              <div
-                className="text"
-                id="start-game"
-                onClick={startGame}
-              >
-                CLICK TO BEGIN
-              </div>
-            )}
-
-            {gameStatus === 'over' && (
-              <>
-                {proofStatus === 'none' && (
-                  <>
-                    <div
-                      className="text"
-                      id="play-again"
-                      onClick={handlePlayAgain}
-                    >
-                      PLAY AGAIN
-                    </div>
-                    <div
-                      className="text"
-                      id="or"
-                    >
-                      OR
-                    </div>
-                    <div
-                      className="text"
-                      id="save-on-chain"
-                      onClick={handleSaveOnChain}
-                    >
-                      SAVE ON CHAIN
-                    </div>
-                  </>
+    // --- Logika Render ---
+    return (
+        <div>
+            {/* ... [Logika game UI lainnya] ... */}
+            
+            <button 
+                // Memanggil handleSaveOnChain dengan data gameData
+                onClick={() => handleSaveOnChain(
+                    gameData.actionLog, 
+                    gameData.blocksDestroyed, 
+                    gameData.timeElapsed
                 )}
-                {proofStatus === 'Pending' && (
-                  <div className="proof-container">
-                    <div
-                      className="text"
-                      id="create-proof"
-                    >
-                      STEP 1: CREATING PROOF
-                    </div>
-                    <Spinner />
-                  </div>
-                )}
+                disabled={isSaving || isPending || !isConnected}
+            >
+                {isSaving || isPending ? <Spinner /> : "SAVE ON CHAIN (GASLESS)"}
+            </button>
 
-                {proofStatus === 'Created' && (
-                  <div className="proof-container">
-                    <div
-                      className="text"
-                      id="verify-proof"
-                    >
-                      STEP 2: VERIFY PROOF
-                    </div>
-                    <Spinner />
-                  </div>
-                )}
-
-                {proofStatus === 'Verified' && (
-                  <div className="text">
-                    ✔️ SAVED ON CHAIN. <span onClick={handlePlayAgain}>PLAY AGAIN?</span>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-        </header>
-        <canvas
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          ref={canvasRef as any}
-          id="game-canvas"
-          className="window-content"
-          width="870"
-          height="600"
-          onClick={handleBricklesWindowClick}
-        />
-      </section>
-    </Draggable>
-  );
+            {txStatus === 'success' && <p>Score berhasil diverifikasi di Base Sepolia!</p>}
+            {txStatus === 'error' && <p>Gagal menyimpan skor. Cek konsol.</p>}
+        </div>
+    );
 }

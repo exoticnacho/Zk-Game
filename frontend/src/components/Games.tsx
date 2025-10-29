@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import Brickles from './Brickles';
+import { Brickles } from './Brickles';
 import Draggable from 'react-draggable';
 
 interface GamesProps {

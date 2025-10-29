@@ -1,5 +1,5 @@
 import { useAccount } from 'wagmi';
-import { connectWithSSO, disconnectWallet, getHighScores } from '../utils/wagmi-config';
+import { connectWithWallet, disconnectWallet, getHighScores } from '../utils/wagmi-config';
 import { useRef, useState } from 'react';
 import HighScores from './HighScores';
 import { Score } from '../utils/types';
