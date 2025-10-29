@@ -1,16 +1,53 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
-  <title>BrickleZ(K)</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+  <head>
+    <meta charset="UTF-8" />
+
+        <meta 
+        http-equiv="Content-Security-Policy" 
+        content="script-src 'self' 'unsafe-eval' 'unsafe-inline' https://cdn.jsdelivr.net; object-src 'self';" 
+    />
+
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+  
+  <title>BrickleZ(K)</title>
+  </head>
+
+  <body>
+    <div id="root"></div>
+
+    <script type="module">
+        // Import the Wasm initializer script
+        import init, * as wasm from "./wasm/game_wasm.js";
+
+        // Logika inisialisasi Wasm
+        window.init_game_wasm_engine = async (canvas_id, score_callback) => {
+            await init(); 
+
+            // 1. Dapatkan elemen Canvas dari DOM
+            const canvas = document.getElementById(canvas_id);
+            if (!canvas) {
+                console.error(`Canvas element with ID '${canvas_id}' not found.`);
+                return null; 
+            }
+            
+            // 2. Buat instance GameWrapper baru (memanggil GameWrapper::new di Rust)
+            const gameWrapper = new wasm.GameWrapper(canvas); 
+            
+            // Asumsi game loop dan callback skor Anda akan dijalankan di dalam GameWrapper
+            console.log("Wasm GameWrapper instance created and game started.");
+            
+            // Kembalikan instance wrapper agar bisa disimpan oleh React Hook
+            return {
+                wrapper: gameWrapper,
+                handleGameEnd: score_callback
+            };
+        };
+    </script>
+        <script type="module" src="/src/main.tsx"></script> 
+</body>
 </html>

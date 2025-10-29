@@ -3,7 +3,6 @@
 import { http, createConfig, connect, disconnect, readContract } from '@wagmi/core';
 import { baseSepolia } from 'wagmi/chains';
 import { injected, coinbaseWallet, walletConnect } from '@wagmi/connectors';
-import { type Abi } from 'viem';
 import { ABI, GAME_CONTRACT_ADDRESS } from './constants';
 import type { Score } from './types'; // Asumsi file types.ts sudah ada
 

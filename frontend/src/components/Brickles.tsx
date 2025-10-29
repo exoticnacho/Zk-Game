@@ -1,6 +1,6 @@
 import { useAccount } from 'wagmi';
 import { useWriteContracts, useCapabilities } from 'wagmi/experimental';
-import { useMemo, useState, useRef } from 'react';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import { PAYMASTER_URL, ABI, GAME_CONTRACT_ADDRESS } from '../utils/constants';
 import { submitProof } from '../utils/proofs'; // Impor fungsi backend Rust Anda
 import { baseSepolia } from 'wagmi/chains';
@@ -106,6 +106,40 @@ export function Brickles({ setShowBrickles, zIndex, handleBricklesWindowClick }:
 
     const nodeRef = useRef(null);
 
+    const gameWrapperRef = useRef<any>(null);
+
+    const handleGameEnd = (blocksDestroyed: number, timeElapsed: number, actionLog: Action[]) => {
+        setGameData({ blocksDestroyed, timeElapsed, actionLog });
+        console.log("Game finished. Ready to save score.");
+    };
+
+    // Panggil initializer Wasm
+    useEffect(() => {
+        const CANVAS_ID = "game-canvas";
+
+        if (typeof (window as any).init_game_wasm_engine === 'function') {
+            console.log("Calling Wasm initializer...");
+            
+            (window as any).init_game_wasm_engine(CANVAS_ID, handleGameEnd).then((result: any) => {
+                if (result && result.wrapper) {
+                    gameWrapperRef.current = result.wrapper;
+                    
+                    // KODE INI MENJALANKAN GAME LOOP (Asumsi: Anda perlu memulai loop render/update)
+                    // Anda mungkin perlu menambahkan logic requestAnimationFrame atau setInterval di sini 
+                    // untuk memanggil gameWrapperRef.current.update() dan gameWrapperRef.current.render()
+                    console.log("Game loop ready to start.");
+                }
+            });
+
+        } else {
+            console.error("Wasm Engine not ready or global function missing.");
+        }
+
+        return () => {
+            // Cleanup di sini
+        };
+    }, []);
+
     // --- Logika Render ---
    return (
         <Draggable 
@@ -133,11 +167,12 @@ export function Brickles({ setShowBrickles, zIndex, handleBricklesWindowClick }:
               </h2>
             </header>
             <div className="content">
-              {/* Ini adalah div tempat game Wasm di-inisialisasi oleh JS */}
-              <div id="game-canvas">
-                {/* Asumsi kode Wasm initializer ada di tempat lain, tapi div ini akan dimuat */}
-                <p>Wasm Game Canvas</p>
-              </div>
+              <canvas 
+                id="game-canvas" 
+                width="640" // Tambahkan lebar
+                height="480" // Tambahkan tinggi
+              >
+              </canvas>
 
               {/* Tombol Save Score */}
               <button 
