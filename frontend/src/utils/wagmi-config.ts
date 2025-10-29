@@ -30,9 +30,6 @@ export const disconnectWallet = async () => {
 
 // Fungsi Read-Only Contract (Sama seperti dokumentasi lama, tetapi Wagmi standar)
 
-// Fungsi ini membutuhkan ABI tuple untuk Score dari constants.ts
-const SCORE_ABI = ABI.find(item => item.name === 'getTopScores')?.outputs[0] as unknown as Abi; 
-
 export async function getPlayerHighScore(playerAddress: `0x${string}`) {
     const data = await readContract(config, {
       abi: ABI,

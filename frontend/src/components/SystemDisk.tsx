@@ -24,7 +24,7 @@ export default function SystemDisk({ highestZIndex, incrementZIndex }: SystemDis
     if (isConnected) {
       disconnectWallet();
     } else {
-      connectWithSSO();
+      connectWithWallet();
     }
   };
 

@@ -1,13 +1,18 @@
-// frontend/src/components/Brickles.tsx
-
 import { useAccount } from 'wagmi';
 import { useWriteContracts, useCapabilities } from 'wagmi/experimental';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import { PAYMASTER_URL, ABI, GAME_CONTRACT_ADDRESS } from '../utils/constants';
 import { submitProof } from '../utils/proofs'; // Impor fungsi backend Rust Anda
 import { baseSepolia } from 'wagmi/chains';
 import Spinner from './Spinner'; // Asumsi Spinner adalah default export
 import type { Action } from '../utils/types'; // Asumsi type Action ada
+import Draggable from 'react-draggable';
+
+interface BricklesProps {
+  setShowBrickles: React.Dispatch<React.SetStateAction<boolean>>;
+  zIndex: number;
+  handleBricklesWindowClick: () => void;
+}
 
 // Definisikan tipe state game
 interface GameState {
@@ -17,8 +22,7 @@ interface GameState {
 }
 
 
-export function Brickles() {
-    // PERBAIKAN: Definisikan state gameData yang menyebabkan error sebelumnya
+export function Brickles({ setShowBrickles, zIndex, handleBricklesWindowClick }: BricklesProps) {
     const [gameData, setGameData] = useState<GameState>({ 
         actionLog: [] as Action[], 
         blocksDestroyed: 0, 
@@ -100,26 +104,57 @@ export function Brickles() {
         }
     };
 
+    const nodeRef = useRef(null);
 
     // --- Logika Render ---
-    return (
-        <div>
-            {/* ... [Logika game UI lainnya] ... */}
-            
-            <button 
-                // Memanggil handleSaveOnChain dengan data gameData
+   return (
+        <Draggable 
+          bounds={{ top: -25, left: -30, right: 775, bottom: 465 }}
+          nodeRef={nodeRef}
+          offsetParent={document.body}
+        >
+          <section
+            className="window"
+            id="bricklesWindow"
+            style={{ zIndex: zIndex }}
+            onClick={handleBricklesWindowClick}
+          >
+            <header>
+              <button
+                className="close"
+                onClick={() => setShowBrickles(false)}
+              />
+              <h2
+                className="title"
+                ref={nodeRef}
+              >
+                {' '}
+                <span>Brickles</span>
+              </h2>
+            </header>
+            <div className="content">
+              {/* Ini adalah div tempat game Wasm di-inisialisasi oleh JS */}
+              <div id="game-canvas">
+                {/* Asumsi kode Wasm initializer ada di tempat lain, tapi div ini akan dimuat */}
+                <p>Wasm Game Canvas</p>
+              </div>
+
+              {/* Tombol Save Score */}
+              <button 
                 onClick={() => handleSaveOnChain(
                     gameData.actionLog, 
                     gameData.blocksDestroyed, 
                     gameData.timeElapsed
                 )}
                 disabled={isSaving || isPending || !isConnected}
-            >
+              >
                 {isSaving || isPending ? <Spinner /> : "SAVE ON CHAIN (GASLESS)"}
-            </button>
+              </button>
 
-            {txStatus === 'success' && <p>Score berhasil diverifikasi di Base Sepolia!</p>}
-            {txStatus === 'error' && <p>Gagal menyimpan skor. Cek konsol.</p>}
-        </div>
+              {txStatus === 'success' && <p>Score berhasil diverifikasi di Base Sepolia!</p>}
+              {txStatus === 'error' && <p>Gagal menyimpan skor. Cek konsol.</p>}
+            </div>
+          </section>
+        </Draggable>
     );
 }
